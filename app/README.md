@@ -82,14 +82,25 @@ npm run smoke         # requires cli/addon.node and the Razer app quit
 
 Expect `ok:true` for the Ornata Chroma and the Basilisk V3.
 
-## Build a `.app`
+## Build a `.app`, `.dmg` and `.pkg`
 
 ```bash
 cd app
-npm run pack          # electron-builder --dir  -> app/dist/mac[-arm64]/Razer Ornata Lighting.app
-# or a full installer:
-npm run dist          # electron-builder        -> app/dist/*.dmg / *.zip
+npm run pack          # electron-builder --dir       -> app/dist/mac-arm64/Razer Ornata Lighting.app
+# or the distributable installers:
+npm run dist          # electron-builder --mac dmg pkg -> app/dist/*.dmg  +  app/dist/*.pkg
 ```
+
+`npm run dist` produces two installers side by side:
+
+- **`Razer Ornata Lighting-<version>-arm64.dmg`** — drag-to-Applications disk image.
+- **`Razer Ornata Lighting-<version>-arm64.pkg`** — installer package that puts the
+  app straight into `/Applications`.
+
+Both are **unsigned** (built with `identity: null`, no Apple Developer ID). They run
+locally, but macOS Gatekeeper will warn on first launch — right-click the app →
+*Open*, or run `xattr -dr com.apple.quarantine "/Applications/Razer Ornata Lighting.app"`.
+For real distribution the app would need to be signed and notarized.
 
 The build copies the reused engine and the addon into the packaged app via
 electron-builder `extraResources`:

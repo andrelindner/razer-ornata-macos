@@ -10,7 +10,7 @@
     "start": "electron .",
     "smoke": "node src/smoke.js",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder --mac dmg pkg"
   },
   "build": {
     "appId": "de.lindner.razer-ornata-macos",
@@ -37,9 +37,17 @@
     ],
     "mac": {
       "category": "public.app-category.utilities",
+      "identity": null,
       "target": [
-        "dir"
+        "dmg",
+        "pkg"
       ]
+    },
+    "dmg": {
+      "title": "${productName}"
+    },
+    "pkg": {
+      "installLocation": "/Applications"
     }
   },
   "devDependencies": {
