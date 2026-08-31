@@ -27,6 +27,10 @@ const ADDON_PATH = path.join(__dirname, '..', 'addon.node');
 // Product IDs of Ornata keyboards that share this 6x22 layout.
 const ORNATA_PIDS = { 542: 'Ornata Chroma', 543: 'Ornata', 605: 'Ornata Chroma V2' };
 
+// Known Razer mice (nicer display names). Any non-keyboard Razer device is
+// still usable as a generic mouse if it isn't listed here.
+const MOUSE_PIDS = { 153: 'Basilisk V3' };
+
 // A device-access error the caller can recognise: it means the Razer macOS app
 // (or something else) is holding the keyboard open exclusively.
 class DeviceBusyError extends Error {
@@ -70,6 +74,95 @@ function findKeyboard(addon) {
     throw new Error('Ornata not found. Devices seen: ' + JSON.stringify(devices));
   }
   return kbd;
+}
+
+// Find a Razer mouse. Prefers a known mouse PID; otherwise falls back to any
+// connected device that isn't the Ornata keyboard.
+function findMouse(addon) {
+  let devices;
+  try {
+    devices = addon.getAllDevices();
+  } catch (e) {
+    throw new Error('getAllDevices failed: ' + e.message);
+  }
+  let dev = (devices || []).find((d) => MOUSE_PIDS[d.productId]);
+  if (!dev) dev = (devices || []).find((d) => !ORNATA_PIDS[d.productId]);
+  if (!dev) {
+    if (!devices || devices.length === 0) {
+      throw new DeviceBusyError(
+        'No Razer device could be opened.\n' +
+        'Quit the "Razer macOS" menu-bar app first — it holds the device open\n' +
+        '(exclusive access), which blocks this tool. Then try again.'
+      );
+    }
+    throw new Error('No Razer mouse found. Devices seen: ' + JSON.stringify(devices));
+  }
+  return dev;
+}
+
+function mouseName(dev) {
+  return MOUSE_PIDS[dev.productId] || `Razer mouse (0x${dev.productId.toString(16).padStart(4, '0')})`;
+}
+
+// Open the mouse, run fn(addon, dev), always close afterwards.
+function withMouse(fn) {
+  const addon = loadAddon();
+  const dev = findMouse(addon);
+  try {
+    return fn(addon, dev);
+  } finally {
+    try { addon.closeAllDevices(); } catch (_) { /* ignore */ }
+  }
+}
+
+// Probe for the mouse without changing anything (mirrors probe() for the kbd).
+function probeMouse() {
+  let addon;
+  try {
+    addon = loadAddon();
+  } catch (e) {
+    return { ok: false, code: 'NO_ADDON', message: e.message };
+  }
+  try {
+    const dev = findMouse(addon);
+    let dpi;
+    try { dpi = addon.mouseGetDpi(dev.internalDeviceId); } catch (_) { dpi = null; }
+    return { ok: true, productId: dev.productId, name: mouseName(dev), internalDeviceId: dev.internalDeviceId, dpi };
+  } catch (e) {
+    return { ok: false, code: e.code || 'ERROR', message: e.message };
+  } finally {
+    try { addon.closeAllDevices(); } catch (_) { /* ignore */ }
+  }
+}
+
+// Apply a lighting effect / setting to the mouse. `opts`:
+//   { mode: 'static'|'spectrum'|'wave'|'off', color?, direction?, brightness?, dpi? }
+// The mouse is driven as a single lighting group (the addon's "logo" mode set),
+// which is how razer-macos itself lights the Basilisk V3. Returns { name }.
+function applyMouse(opts) {
+  const o = opts || {};
+  return withMouse((addon, dev) => {
+    const id = dev.internalDeviceId;
+    if (o.brightness !== undefined) addon.mouseSetBrightness(id, parseBrightness(o.brightness));
+    if (o.dpi !== undefined) {
+      const d = Math.round(Number(o.dpi));
+      if (!Number.isFinite(d) || d < 100 || d > 30000) throw new Error(`dpi must be 100..30000, got "${o.dpi}"`);
+      addon.mouseSetDpi(id, d);
+    }
+    switch (o.mode) {
+      case 'static': {
+        const [r, g, b] = parseColor(o.color || '#ffffff');
+        addon.mouseSetLogoModeStatic(id, new Uint8Array([r, g, b]));
+        break;
+      }
+      case 'spectrum': addon.mouseSetLogoModeSpectrum(id); break;
+      case 'wave': addon.mouseSetLogoModeWave(id, Number(o.direction) === 2 ? 2 : 1); break;
+      case 'off': addon.mouseSetLogoModeNone(id); break;
+      case undefined: break; // brightness/dpi-only change
+      default: throw new Error(`unknown mouse mode "${o.mode}"`);
+    }
+    return { name: mouseName(dev) };
+  });
 }
 
 // hex ("#rrggbb" / "rrggbb" / "#rgb") -> [r,g,b]
@@ -179,10 +272,11 @@ function applySpec(spec) {
 }
 
 module.exports = {
-  ROWS, COLS, ORNATA_PIDS, ADDON_PATH,
+  ROWS, COLS, ORNATA_PIDS, MOUSE_PIDS, ADDON_PATH,
   DeviceBusyError,
   loadAddon, findKeyboard,
   parseColor, blankFrame, buildFrame, applyFrame,
   parseBrightness, setBrightness,
   withKeyboard, probe, applySpec,
+  findMouse, mouseName, withMouse, probeMouse, applyMouse,
 };

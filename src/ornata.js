@@ -20,6 +20,7 @@ const {
   ORNATA_PIDS,
   parseColor, blankFrame, applyFrame,
   setBrightness, withKeyboard, loadAddon,
+  applyMouse, probeMouse,
 } = require('./engine');
 
 // ---- commands ---------------------------------------------------------------
@@ -150,6 +151,46 @@ function cmdList() {
   });
 }
 
+// Control a connected Razer mouse (e.g. Basilisk V3). The mouse is lit as a
+// single group: static color, spectrum, wave, or off; plus brightness and DPI.
+function cmdMouse(args) {
+  const sub = args[0];
+  const rest = args.slice(1);
+
+  if (sub === undefined || sub === 'info') {
+    const s = probeMouse();
+    if (!s.ok) fail(s.message);
+    console.log(`${s.name} — DPI ${s.dpi != null ? s.dpi : 'n/a'} (device id ${s.internalDeviceId})`);
+    return;
+  }
+
+  let opts;
+  let done;
+  switch (sub) {
+    case 'color':
+      if (!rest[0]) fail('usage: ornata mouse color <hex>');
+      opts = { mode: 'static', color: rest[0] };
+      done = `Mouse set to #${rest[0].replace(/^#/, '')}`;
+      break;
+    case 'spectrum': opts = { mode: 'spectrum' }; done = 'Mouse set to spectrum'; break;
+    case 'wave': opts = { mode: 'wave', direction: rest[0] }; done = 'Mouse set to wave'; break;
+    case 'off': opts = { mode: 'off' }; done = 'Mouse lighting off'; break;
+    case 'brightness':
+    case 'bright':
+      if (rest[0] === undefined) fail('usage: ornata mouse brightness <0..100>');
+      opts = { brightness: rest[0] }; done = `Mouse brightness ${rest[0]}%`;
+      break;
+    case 'dpi':
+      if (rest[0] === undefined) fail('usage: ornata mouse dpi <100..30000>');
+      opts = { dpi: rest[0] }; done = `Mouse DPI ${rest[0]}`;
+      break;
+    default:
+      fail(`unknown mouse subcommand "${sub}" (use: color, spectrum, wave, off, brightness, dpi, info)`);
+  }
+  const r = applyMouse(opts);
+  console.log(`${done} on ${r.name}.`);
+}
+
 function cmdDevices() {
   const addon = loadAddon();
   console.log(JSON.stringify(addon.getAllDevices(), null, 2));
@@ -171,6 +212,8 @@ Usage:
   ornata all <hex> [--bright 0..100]     set the whole keyboard to one color
   ornata brightness <0..100>             set keyboard brightness only
   ornata off                             turn all keys off
+  ornata mouse <color <hex>|spectrum|wave [1|2]|off|brightness <0..100>|dpi <n>|info>
+                                         control a connected Razer mouse (Basilisk V3)
   ornata groups                          list built-in key groups
   ornata list                            list all key names and coordinates
   ornata walk [ms]                       light each matrix cell in turn (mapping aid)
@@ -196,6 +239,7 @@ function main() {
       case 'brightness':
       case 'bright': return cmdBrightness(rest[0]);
       case 'groups': return cmdGroups();
+      case 'mouse': return cmdMouse(rest);
       case 'walk': return cmdWalk(rest[0]);
       case 'list': return cmdList();
       case 'devices': return cmdDevices();

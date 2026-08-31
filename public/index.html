@@ -168,6 +168,33 @@
       </div>
       <p class="hint">A profile stores the current colors, background and brightness. <b>Save to scenes/</b> writes it into the project’s <code>scenes/</code> folder; <b>Download .json</b> saves it anywhere. Load it again with <b>Load from file</b>.</p>
     </div>
+
+    <div class="card">
+      <h2>Mouse <span id="mouseStatus" style="text-transform:none; letter-spacing:0; font-weight:400; color:var(--muted)">— checking…</span></h2>
+      <div class="row">
+        <label>Color</label>
+        <input type="color" id="mColor" value="#3a7afe">
+        <input type="text" id="mColorHex" class="hex" value="#3a7afe" spellcheck="false">
+        <button id="mApplyColor" type="button">Apply color</button>
+      </div>
+      <div class="row actions">
+        <button id="mSpectrum" type="button">Spectrum</button>
+        <button id="mWave" type="button">Wave</button>
+        <button id="mOff" type="button">Off</button>
+      </div>
+      <div class="row">
+        <label>Brightness</label>
+        <input type="range" id="mBright" min="0" max="100" value="100">
+        <span id="mBrightVal" style="width:42px; text-align:right; font-variant-numeric:tabular-nums;">100%</span>
+        <button id="mApplyBright" type="button">Set</button>
+      </div>
+      <div class="row">
+        <label>DPI</label>
+        <input type="text" id="mDpi" class="hex" style="width:84px" placeholder="e.g. 3200" spellcheck="false">
+        <button id="mApplyDpi" type="button">Set</button>
+      </div>
+      <p class="hint">Lights the whole mouse (e.g. Basilisk V3) as one zone — per-key/underglow zones aren’t exposed by this driver. Quit the “Razer macOS” app first.</p>
+    </div>
   </div>
 </main>
 
@@ -322,6 +349,29 @@ function handleDeviceResult(r, okMsg) {
   else { toast(r.error || "Failed", true); }
 }
 
+// --- mouse ------------------------------------------------------------------
+async function refreshMouseStatus() {
+  const el = $("#mouseStatus");
+  try {
+    const s = await api("/api/mouse/status");
+    if (s.ok) {
+      el.textContent = `— ${s.name} connected` + (s.dpi != null ? `, ${s.dpi} DPI` : "");
+      el.style.color = "var(--accent)";
+      if (s.dpi != null && !$("#mDpi").value) $("#mDpi").value = s.dpi;
+    } else if (s.code === "DEVICE_BUSY") {
+      el.textContent = "— quit “Razer macOS” app first"; el.style.color = "#ff8f92";
+    } else {
+      el.textContent = "— no mouse found"; el.style.color = "var(--muted)";
+    }
+  } catch (e) { el.textContent = "— server error"; el.style.color = "#ff8f92"; }
+}
+async function mouseApply(opts, okMsg) {
+  const r = await api("/api/mouse", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(opts) });
+  if (r.ok) { toast(okMsg); refreshMouseStatus(); }
+  else if (r.code === "DEVICE_BUSY") { toast("Quit the “Razer macOS” menu-bar app first, then try again.", true); refreshMouseStatus(); }
+  else { toast(r.error || "Failed", true); }
+}
+
 // --- loading a scene into the editor ---------------------------------------
 function loadSceneObject(scene) {
   state.background = normHex(scene.background || "#000000") || "#000000";
@@ -377,6 +427,7 @@ async function init() {
 
   wireControls();
   refreshStatus();
+  refreshMouseStatus();
 }
 
 function setPaint(hex) {
@@ -455,6 +506,23 @@ function wireControls() {
       }
     } else toast(r.error || "Save failed", true);
   };
+  // mouse controls
+  let mPaint = "#3a7afe";
+  const setMPaint = (v) => { const h = normHex(v); if (!h) return; mPaint = h; $("#mColor").value = h; $("#mColorHex").value = h; };
+  $("#mColor").oninput = (e) => setMPaint(e.target.value);
+  $("#mColorHex").onchange = (e) => { const h = normHex(e.target.value); if (h) setMPaint(h); else e.target.value = mPaint; };
+  $("#mApplyColor").onclick = () => mouseApply({ mode: "static", color: mPaint }, `Mouse set to ${mPaint}`);
+  $("#mSpectrum").onclick = () => mouseApply({ mode: "spectrum" }, "Mouse set to spectrum");
+  $("#mWave").onclick = () => mouseApply({ mode: "wave" }, "Mouse set to wave");
+  $("#mOff").onclick = () => mouseApply({ mode: "off" }, "Mouse lighting off");
+  $("#mBright").oninput = (e) => { $("#mBrightVal").textContent = e.target.value + "%"; };
+  $("#mApplyBright").onclick = () => mouseApply({ brightness: Number($("#mBright").value) }, `Mouse brightness ${$("#mBright").value}%`);
+  $("#mApplyDpi").onclick = () => {
+    const v = parseInt($("#mDpi").value, 10);
+    if (!Number.isFinite(v)) { toast("Enter a DPI number", true); return; }
+    mouseApply({ dpi: v }, `Mouse DPI ${v}`);
+  };
+
   $("#downloadScene").onclick = () => {
     const name = ($("#saveName").value.trim() || "scene").replace(/\.json$/,"") + ".json";
     const blob = new Blob([JSON.stringify(currentSpec(), null, 2) + "\n"], { type: "application/json" });

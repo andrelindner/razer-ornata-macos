@@ -26,7 +26,7 @@ const { URL } = require('url');
 const { exec } = require('child_process');
 
 const { KEYS, GROUPS, ALIASES } = require('./layout');
-const { ROWS, COLS, probe, applySpec, withKeyboard, setBrightness, ORNATA_PIDS } = require('./engine');
+const { ROWS, COLS, probe, applySpec, withKeyboard, setBrightness, ORNATA_PIDS, probeMouse, applyMouse } = require('./engine');
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.ORNATA_GUI_PORT) || 8787;
@@ -181,6 +181,20 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && p === '/api/off') {
     try {
       const result = applySpec({ background: '#000000', keys: {} });
+      return sendJson(res, 200, { ok: true, device: result.name });
+    } catch (e) {
+      return sendJson(res, 200, { ok: false, code: e.code || 'ERROR', error: e.message });
+    }
+  }
+
+  if (req.method === 'GET' && p === '/api/mouse/status') {
+    return sendJson(res, 200, probeMouse());
+  }
+
+  if (req.method === 'POST' && p === '/api/mouse') {
+    const opts = await readBody(req);
+    try {
+      const result = applyMouse(opts);
       return sendJson(res, 200, { ok: true, device: result.name });
     } catch (e) {
       return sendJson(res, 200, { ok: false, code: e.code || 'ERROR', error: e.message });

@@ -4,7 +4,8 @@ Per-key RGB lighting for the **Razer Ornata Chroma** (PID `0x021E`) on macOS —
 including Apple Silicon and macOS 26 (Tahoe), where it was developed and tested.
 
 Comes with both a **command-line tool** and a **local web GUI** (a visual
-keyboard you paint with your mouse).
+keyboard you paint with your mouse). It can also control the lighting and DPI of
+a connected Razer mouse (developed against the **Basilisk V3**) — see [Mouse](#mouse).
 
 ## Why this exists
 
@@ -100,6 +101,9 @@ whether the keyboard is reachable and tells you if the app is still holding it.
   **Load bundled** (the scenes that ship with the project) to keep editing it.
 - The on-screen keyboard is a **live WYSIWYG preview** — it always reflects your
   assigned colors, background and group edits, even before you apply.
+- A **Mouse** panel for a connected Razer mouse (e.g. Basilisk V3): set a static
+  color, Spectrum or Wave, turn its lighting off, adjust brightness, and set the
+  DPI. It lights the mouse as a single zone (see [Mouse](#mouse) below).
 
 ## The CLI
 
@@ -124,6 +128,12 @@ node src/ornata.js brightness 80
 
 # Everything off
 node src/ornata.js off
+
+# Control a connected Razer mouse (Basilisk V3)
+node src/ornata.js mouse color 3a7afe      # static color
+node src/ornata.js mouse spectrum          # cycling spectrum
+node src/ornata.js mouse dpi 1600          # set DPI
+node src/ornata.js mouse info              # show name + current DPI
 
 # List built-in groups / all key names / detected devices
 node src/ornata.js groups
@@ -196,6 +206,28 @@ keyboard's own memory, so it persists until you apply something else.
 Re-apply it any time with `node src/ornata.js default` (CLI) or **Load default
 profile** (GUI). Edit `scenes/default.json` to change what "default" means for
 you — it's a normal scene file (see [Scene files](#scene-files)).
+
+## Mouse
+
+If a Razer mouse is connected (developed against the **Basilisk V3**, PID
+`0x0099`), the tool can drive its lighting too — from the GUI's **Mouse** panel or
+the CLI:
+
+```bash
+node src/ornata.js mouse color <hex>       # static color
+node src/ornata.js mouse spectrum          # cycling spectrum
+node src/ornata.js mouse wave [1|2]        # wave (optional direction)
+node src/ornata.js mouse off               # lighting off
+node src/ornata.js mouse brightness 0..100 # brightness
+node src/ornata.js mouse dpi <100..30000>  # sensor DPI
+node src/ornata.js mouse info              # name + current DPI
+```
+
+The mouse is lit as **one zone** (the driver's whole-mouse lighting mode) — the
+same set of effects razer-macos offers for it. Per-zone underglow / individual
+LEDs are **not** exposed by this driver, so unlike the keyboard there is no
+per-LED custom frame for the mouse. Static color, Spectrum, Wave, brightness and
+DPI all work. As with the keyboard, quit the “Razer macOS” app first.
 
 ## Scene files
 
