@@ -1,6 +1,13 @@
 # The native addon belongs to razer-macos / librazermacos (GPL) — not shipped here.
-# Run ./setup.sh to extract it from your installed app.
+# Run cli/setup.sh (or app setup) to extract it from your installed Razer app.
 addon.node
+cli/addon.node
+app/addon.node
 
+# Dependencies and build output
 node_modules/
+app/dist/
+app/out/
+app/build/
+
 .DS_Store
