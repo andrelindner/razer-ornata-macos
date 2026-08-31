@@ -117,6 +117,20 @@ same logic that works in dev (`../../cli/addon.node`).
 
 Build output (`dist/`) is gitignored and never committed.
 
+## App icon
+
+The icon is a neon-green Chinese-dragon-head outline on an anthracite background.
+It is generated procedurally (no external assets) by [`assets/make_icon.py`](assets/make_icon.py)
+(pure Pillow). To regenerate and rebuild the `.icns`:
+
+```bash
+python3 assets/make_icon.py         # writes the 1024px master + tray templates
+# then rebuild the iconset -> assets/icon.icns with sips + iconutil
+```
+
+`assets/icon.icns` is used by electron-builder (`mac.icon`); the menu-bar tray uses
+a monochrome template baked into `src/main.js`.
+
 ## License
 
 **GNU General Public License v2.0 or later** — this app links against the GPL

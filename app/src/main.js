@@ -193,10 +193,12 @@ let isQuitting = false;
 
 // Small keyboard glyph as a macOS "template" image (black + alpha, auto-tints
 // to the menu-bar). Generated offline; embedded so no external asset is needed.
-const TRAY_ICON_B64 =
-  'iVBORw0KGgoAAAANSUhEUgAAABYAAAAWCAYAAADEtGw7AAAAPUlEQVR4nGNgGAX0BP+phDEMpaYD' +
-  '6WswupfI4dPXYErBaBgTNphSQNBgsnIaMQaTC+hjMEyA6oXQKKAdAAAH5WWbI+CIUwAAAABJRU5E' +
-  'rkJggg==';
+// Neon dragon-head silhouette at 1x (22px) and 2x (44px). Template image =
+// black + alpha; macOS recolors it to match light/dark menu bars.
+const TRAY_ICON_22_B64 =
+  'iVBORw0KGgoAAAANSUhEUgAAABYAAAAWCAYAAADEtGw7AAABJElEQVR4nO3Tuy5EURQG4O/MuETIFG4JkZBIiChEoZFRKUSl1mg8gU7nCcQTaBUatUIn8QQmUQuNCKFzGXKSNXFM5oYQxfzJyb/XOXut8+9/rc0fI6ni/1k0FzyPuVhPo/snxVKUIy5hDUMYxTjy6AjOf+c0ueBJ7GEG63X2NvxBUifhFZuYiKcU755xjVNcZcSUWymcBPfjGPs4wy0KmMJCxOm3+3rFaylOsYWiD3T5jGXsYinipr4nwQcYjHUhmpk2sDPTiwHsYCXycrWmooK32HSIbSziATd4CZ8rx35CL8YyeQ3lJ7FxGBvowTkew9vLUL+KOxxV+9zIl3xMQooRzIa61JK+UHuBk4yQlpFkmvkltHqDkqp+ZNU1HbM22vhlvAPlSi81mI009QAAAABJRU5ErkJggg==';
+const TRAY_ICON_44_B64 =
+  'iVBORw0KGgoAAAANSUhEUgAAACwAAAAsCAYAAAAehFoBAAACeklEQVR4nO3XS6hNURzH8c85x+uSPPJIHlFeXRlQMsKEQlGGMjIhyUxmBgZKCgMDjwEpM2EgUgYykZIoj1LeREnKK+97teu/tDqde52Te+5V9rd2Z5211977t/77t/7/tSkp+T+ootKgv1FfSSsUERyFLdHOIz0UU7Nx/UK1ifPv8BVH0YVanBuMDf2gsSXBP0PgsRC4Gz+i/RFTMBbd/5KfKyG6Ay+xJjt3CCuyMf8MtfhdhW+Zd7fiRLQHZT5PXq8MkN7fggrO4la0J+NV/PZENa79k/36nBS5Imt8wb7oPx3WKKI5A/PQiWkY1uBNVQfCGutjoS3Ftmg/img/xRO8wGNcwy7MqrtPpb9FXwyhD3EcqzEJIzAcE7AAm3AOz3EGixrcq22kxTQ/onkAo5u8dgr24hlOYXzdYm2bYLHojmT9g+qilTJENfrzc+NwOCyzrsG9+1zsXHyOBycxKUJjsDATnVPJMo2w0LMoSsOzMb3SyqzS2GW4hzfxgKIaJjp62V90R5VMwi9ERikyyd0IRHdfRjpF5yTuY2Rdf6vUMCTam3E9Sn6vgluZTTH7gquRGW5icURNVhyaWfnVeDOdEenLmB6pr6tduXojXmNnnchaiE9Ho5ybql8heA9uYH/Yo89LenqYiMgl3MZ2TGzi2kr2f21YrGn+Zia1bMEtj4o3Bw9wBx9CYFH1rkRGSBTFZQl24HyU+cK/39spWOa1wndiE7QyCkuRqoo3MTOKxKf4GEhb1bc4GB6uZvdoq+BE8nCe4nKKDdPsyN3vs32HVsRqQ0ms/+4TYhoJSuN6mmRD+mvHVMmO7uwoKSkpKSkpKSkpKdE8vwBTJ2agA4Ms4QAAAABJRU5ErkJggg==';
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -276,7 +278,9 @@ function loadDefaultProfile() {
 }
 
 function createTray() {
-  let img = nativeImage.createFromDataURL('data:image/png;base64,' + TRAY_ICON_B64);
+  const img = nativeImage.createEmpty();
+  img.addRepresentation({ scaleFactor: 1, width: 22, height: 22, buffer: Buffer.from(TRAY_ICON_22_B64, 'base64') });
+  img.addRepresentation({ scaleFactor: 2, width: 44, height: 44, buffer: Buffer.from(TRAY_ICON_44_B64, 'base64') });
   img.setTemplateImage(true);
   tray = new Tray(img);
   tray.setToolTip('Razer Ornata Lighting');
@@ -340,6 +344,11 @@ if (!gotLock) {
   app.on('second-instance', () => showWindow());
 
   app.whenReady().then(() => {
+    // In dev the bundle icon isn't applied, so set the dock icon from assets.
+    if (!app.isPackaged && process.platform === 'darwin' && app.dock) {
+      const devIcon = path.join(__dirname, '..', 'assets', 'icon.png');
+      if (fs.existsSync(devIcon)) app.dock.setIcon(devIcon);
+    }
     registerIpc();
     buildAppMenu();
     createWindow();
