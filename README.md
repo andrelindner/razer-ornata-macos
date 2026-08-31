@@ -43,6 +43,35 @@ cd razer-ornata-macos
 `addon.node` is the native module from razer-macos (GPL). It is **not** committed
 to this repo; `setup.sh` copies it out of the app you installed.
 
+The last step of `setup.sh` applies the **default profile** (below), so the
+keyboard is lit right after installation.
+
+## Default profile
+
+Straight after setup — and until you change it — the keyboard uses this profile
+([`scenes/default.json`](scenes/default.json)):
+
+| Keys | Colour |
+|------|--------|
+| Function row (F1–F12) | bright purple `#c060ff` |
+| Letters (A–Z) and the number row (1–0) | vivid green `#00ff33` |
+| Arrow keys | light blue `#33ccff` |
+| Number pad | red `#ff0000` |
+| Print Screen, Insert, Page Up & the rest of that cluster (Scroll Lock, Pause, Home, Delete, End, Page Down) | pink `#ff2e97` |
+
+Brightness is set to 100 %. Every other key (Esc, Tab, modifiers, Space, Enter…)
+stays off, so you have a clean canvas to build on.
+
+The profile lives in the keyboard's own memory, so it persists until you apply
+something else. Re-apply it at any time with:
+
+```bash
+node src/ornata.js default
+```
+
+Edit `scenes/default.json` to change what "default" means for you — it's a normal
+scene file (see [Scene files](#scene-files)).
+
 ## Important: quit the Razer app first
 
 The razer-macos menu-bar app opens the keyboard **exclusively**. While it runs,
@@ -57,6 +86,9 @@ node src/ornata.js key WASD ff2020 ARROWS 0000ff SPACE 00ff00 --bg 0a0a2a
 
 # Assign one color to a comma-separated list of keys
 node src/ornata.js key J,K,L,SEMICOLON 00ffcc
+
+# Re-apply the built-in default profile
+node src/ornata.js default
 
 # Apply a saved scene (background, keys, groups, brightness)
 node src/ornata.js apply scenes/gaming.json
@@ -143,7 +175,8 @@ key, a comma list, a built-in group, or one of your own groups:
 }
 ```
 
-See [`scenes/`](scenes) for more examples (`wasd.json`, `arrows.json`, `gaming.json`).
+See [`scenes/`](scenes) and its [README](scenes/README.md) for more examples
+(`default.json`, `wasd.json`, `arrows.json`, `gaming.json`).
 
 ## Notes & limitations
 

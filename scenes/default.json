@@ -1,0 +1,15 @@
+{
+  "brightness": 100,
+  "background": "#000000",
+  "groups": {
+    "FUNCTIONS": ["PRTSC", "SCRLK", "PAUSE", "INS", "HOME", "PGUP", "DEL", "END", "PGDN"]
+  },
+  "keys": {
+    "FKEYS": "#c060ff",
+    "LETTERS": "#00ff33",
+    "NUMROW": "#00ff33",
+    "ARROWS": "#33ccff",
+    "NUMPAD": "#ff0000",
+    "FUNCTIONS": "#ff2e97"
+  }
+}

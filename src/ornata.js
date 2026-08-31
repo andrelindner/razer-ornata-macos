@@ -128,6 +128,12 @@ function cmdApply(sceneArg) {
   });
 }
 
+// The shipped default profile — applied by setup.sh on first install and
+// re-applied any time with `ornata default`. Lives in the keyboard until changed.
+function cmdDefault() {
+  cmdApply(path.join(__dirname, '..', 'scenes', 'default.json'));
+}
+
 function cmdKeys(pairs) {
   // ornata key WASD ff0000 ARROWS 00ff00 J,K,L 0000ff  [--bg 101010] [--bright 80]
   let bg = [0, 0, 0];
@@ -244,6 +250,7 @@ function usage() {
 Usage:
   ornata key <KEY|GROUP|k1,k2> <hex> [...] [--bg <hex>] [--bright 0..100]
                                          light keys/groups on a background
+  ornata default                         apply the built-in default profile
   ornata apply <scene.json>              apply a scene (background, keys, groups, brightness)
   ornata all <hex> [--bright 0..100]     set the whole keyboard to one color
   ornata brightness <0..100>             set keyboard brightness only
@@ -266,6 +273,7 @@ function main() {
   try {
     switch (cmd) {
       case 'apply': return cmdApply(rest[0]);
+      case 'default': return cmdDefault();
       case 'key': return cmdKeys(rest);
       case 'all': return cmdAll(rest);
       case 'off': return cmdOff();

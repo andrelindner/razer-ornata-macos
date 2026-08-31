@@ -28,4 +28,16 @@ if [ ! -f "$HERE/addon.node" ]; then
 fi
 
 echo "Done. addon.node is ready in $HERE"
-echo "Try:  node src/ornata.js all 202020"
+echo ""
+
+# Apply the default profile once, so the keyboard is lit right after install.
+# Best-effort: this fails harmlessly if the Razer macOS app still holds the
+# device (quit it, then run "node src/ornata.js default" yourself).
+echo "Applying the default profile..."
+if node "$HERE/src/ornata.js" default; then
+  echo "The keyboard now shows the default profile. Customise it any time; see README.md."
+else
+  echo "" >&2
+  echo "Could not apply the default profile yet. Quit the \"Razer macOS\" menu-bar" >&2
+  echo "app (it holds the keyboard open), then run:  node src/ornata.js default" >&2
+fi
