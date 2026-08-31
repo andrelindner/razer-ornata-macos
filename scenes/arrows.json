@@ -1,0 +1,9 @@
+{
+  "background": "#000000",
+  "keys": {
+    "UP": "#00ff00",
+    "DOWN": "#00ff00",
+    "LEFT": "#00ff00",
+    "RIGHT": "#00ff00"
+  }
+}

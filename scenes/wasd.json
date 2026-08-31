@@ -1,0 +1,16 @@
+{
+  "background": "#0a0a2a",
+  "keys": {
+    "W": "#ff2020",
+    "A": "#ff2020",
+    "S": "#ff2020",
+    "D": "#ff2020",
+    "SPACE": "#20ff20",
+    "LSHIFT": "#ffaa00",
+    "LCTRL": "#ffaa00",
+    "ESC": "#ffffff",
+    "E": "#00c8ff",
+    "Q": "#00c8ff",
+    "R": "#00c8ff"
+  }
+}

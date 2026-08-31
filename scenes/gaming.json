@@ -1,0 +1,16 @@
+{
+  "brightness": 80,
+  "background": "#050510",
+  "groups": {
+    "movement": ["W", "A", "S", "D"],
+    "abilities": ["Q", "E", "R", "F"]
+  },
+  "keys": {
+    "movement": "#ff2020",
+    "abilities": "#00c8ff",
+    "SPACE": "#20ff20",
+    "LSHIFT,LCTRL": "#ffaa00",
+    "N1,N2,N3,N4,N5": "#ff00ff",
+    "ESC": "#ffffff"
+  }
+}
