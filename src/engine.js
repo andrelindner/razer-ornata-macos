@@ -152,7 +152,10 @@ function applyMouse(opts) {
     switch (o.mode) {
       case 'static': {
         const [r, g, b] = parseColor(o.color || '#ffffff');
-        addon.mouseSetLogoModeStatic(id, new Uint8Array([r, g, b]));
+        // store:false avoids writing each frame to the mouse's flash (used by
+        // the animated colour flow, which changes the colour many times/second).
+        if (o.store === false) addon.mouseSetLogoModeStaticNoStore(id, new Uint8Array([r, g, b]));
+        else addon.mouseSetLogoModeStatic(id, new Uint8Array([r, g, b]));
         break;
       }
       case 'spectrum': addon.mouseSetLogoModeSpectrum(id); break;
@@ -163,6 +166,22 @@ function applyMouse(opts) {
     }
     return { name: mouseName(dev) };
   });
+}
+
+// HSV (h in degrees 0..360, s/v 0..1) -> [r,g,b] 0..255. Used for the colour flow.
+function hsvToRgb(h, s, v) {
+  h = ((h % 360) + 360) % 360;
+  const c = v * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = v - c;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) { r = c; g = x; }
+  else if (h < 120) { r = x; g = c; }
+  else if (h < 180) { g = c; b = x; }
+  else if (h < 240) { g = x; b = c; }
+  else if (h < 300) { r = x; b = c; }
+  else { r = c; b = x; }
+  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
 }
 
 // hex ("#rrggbb" / "rrggbb" / "#rgb") -> [r,g,b]
@@ -276,7 +295,7 @@ module.exports = {
   DeviceBusyError,
   loadAddon, findKeyboard,
   parseColor, blankFrame, buildFrame, applyFrame,
-  parseBrightness, setBrightness,
+  parseBrightness, setBrightness, hsvToRgb,
   withKeyboard, probe, applySpec,
   findMouse, mouseName, withMouse, probeMouse, applyMouse,
 };
