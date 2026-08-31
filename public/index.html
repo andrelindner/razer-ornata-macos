@@ -180,13 +180,7 @@
       <div class="row actions">
         <button id="mSpectrum" type="button">Spectrum</button>
         <button id="mWave" type="button">Wave</button>
-        <button id="mFlow" type="button">Flow ▶</button>
         <button id="mOff" type="button">Off</button>
-      </div>
-      <div class="row">
-        <label>Flow speed</label>
-        <input type="range" id="mSpeed" min="1" max="100" value="50">
-        <span id="mSpeedVal" style="width:42px; text-align:right; font-variant-numeric:tabular-nums;">50</span>
       </div>
       <div class="row">
         <label>Brightness</label>
@@ -378,42 +372,6 @@ async function mouseApply(opts, okMsg) {
   else { toast(r.error || "Failed", true); }
 }
 
-// Software colour flow: cycle the mouse's single zone through the hue wheel at an
-// adjustable speed. The hardware wave has no speed knob and this driver exposes no
-// per-LED control, so this is how the mouse gets a speed-controllable moving colour.
-const mFlow = { on: false, hue: 0 };
-function flowHsv(h) {
-  h = ((h % 360) + 360) % 360;
-  const c = 1, x = 1 - Math.abs(((h / 60) % 2) - 1);
-  let r = 0, g = 0, b = 0;
-  if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; }
-  else if (h < 180) { g = c; b = x; } else if (h < 240) { g = x; b = c; }
-  else if (h < 300) { r = c; b = x; } else { r = c; b = x; }
-  const to = (n) => Math.round(n * 255).toString(16).padStart(2, "0");
-  return "#" + to(r) + to(g) + to(b);
-}
-async function flowTick() {
-  if (!mFlow.on) return;
-  const color = flowHsv(mFlow.hue);
-  const r = await api("/api/mouse", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ mode: "static", color, store: false }) }).catch(() => ({ ok: false }));
-  if (r && r.code === "DEVICE_BUSY") { stopFlow(true); toast("Quit the “Razer macOS” app first, then try again.", true); refreshMouseStatus(); return; }
-  const speed = Number($("#mSpeed").value);
-  mFlow.hue = (mFlow.hue + (2 + (speed / 100) * 38)) % 360;
-  if (mFlow.on) setTimeout(flowTick, 150);
-}
-function startFlow() {
-  if (mFlow.on) return;
-  mFlow.on = true;
-  const b = $("#mFlow"); b.classList.add("primary"); b.textContent = "Flow ⏸";
-  toast("Colour flow started"); flowTick();
-}
-function stopFlow(silent) {
-  if (!mFlow.on) return;
-  mFlow.on = false;
-  const b = $("#mFlow"); b.classList.remove("primary"); b.textContent = "Flow ▶";
-  if (!silent) toast("Colour flow stopped");
-}
-
 // --- loading a scene into the editor ---------------------------------------
 function loadSceneObject(scene) {
   state.background = normHex(scene.background || "#000000") || "#000000";
@@ -553,18 +511,15 @@ function wireControls() {
   const setMPaint = (v) => { const h = normHex(v); if (!h) return; mPaint = h; $("#mColor").value = h; $("#mColorHex").value = h; };
   $("#mColor").oninput = (e) => setMPaint(e.target.value);
   $("#mColorHex").onchange = (e) => { const h = normHex(e.target.value); if (h) setMPaint(h); else e.target.value = mPaint; };
-  $("#mApplyColor").onclick = () => { stopFlow(true); mouseApply({ mode: "static", color: mPaint }, `Mouse set to ${mPaint}`); };
-  $("#mSpectrum").onclick = () => { stopFlow(true); mouseApply({ mode: "spectrum" }, "Mouse set to spectrum"); };
-  $("#mWave").onclick = () => { stopFlow(true); mouseApply({ mode: "wave" }, "Mouse set to wave"); };
-  $("#mOff").onclick = () => { stopFlow(true); mouseApply({ mode: "off" }, "Mouse lighting off"); };
-  $("#mFlow").onclick = () => { if (mFlow.on) stopFlow(); else startFlow(); };
-  $("#mSpeed").oninput = (e) => { $("#mSpeedVal").textContent = e.target.value; };
+  $("#mApplyColor").onclick = () => mouseApply({ mode: "static", color: mPaint }, `Mouse set to ${mPaint}`);
+  $("#mSpectrum").onclick = () => mouseApply({ mode: "spectrum" }, "Mouse set to spectrum");
+  $("#mWave").onclick = () => mouseApply({ mode: "wave" }, "Mouse set to wave");
+  $("#mOff").onclick = () => mouseApply({ mode: "off" }, "Mouse lighting off");
   $("#mBright").oninput = (e) => { $("#mBrightVal").textContent = e.target.value + "%"; };
-  $("#mApplyBright").onclick = () => { stopFlow(true); mouseApply({ brightness: Number($("#mBright").value) }, `Mouse brightness ${$("#mBright").value}%`); };
+  $("#mApplyBright").onclick = () => mouseApply({ brightness: Number($("#mBright").value) }, `Mouse brightness ${$("#mBright").value}%`);
   $("#mApplyDpi").onclick = () => {
     const v = parseInt($("#mDpi").value, 10);
     if (!Number.isFinite(v)) { toast("Enter a DPI number", true); return; }
-    stopFlow(true);
     mouseApply({ dpi: v }, `Mouse DPI ${v}`);
   };
 

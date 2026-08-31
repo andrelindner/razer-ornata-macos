@@ -20,7 +20,7 @@ const {
   ORNATA_PIDS,
   parseColor, blankFrame, applyFrame,
   setBrightness, withKeyboard, loadAddon,
-  applyMouse, probeMouse, findMouse, mouseName, hsvToRgb,
+  applyMouse, probeMouse,
 } = require('./engine');
 
 // ---- commands ---------------------------------------------------------------
@@ -164,8 +164,6 @@ function cmdMouse(args) {
     return;
   }
 
-  if (sub === 'flow') return cmdMouseFlow(rest);
-
   let opts;
   let done;
   switch (sub) {
@@ -193,38 +191,6 @@ function cmdMouse(args) {
   console.log(`${done} on ${r.name}.`);
 }
 
-// Software colour flow: cycle the mouse's single lighting zone through the hue
-// wheel at an adjustable speed. This is how you get a *speed-controllable* moving
-// colour on the mouse — the hardware wave effect has no speed parameter, and this
-// driver exposes no per-LED control to build a spatial wave ourselves. Runs until
-// Ctrl+C; uses the no-store colour write so it doesn't hammer the mouse's flash.
-function cmdMouseFlow(args) {
-  let speed = 50;
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--speed' || args[i] === '-s') speed = Number(args[++i]);
-  }
-  if (!Number.isFinite(speed) || speed < 1 || speed > 100) fail('speed must be 1..100');
-
-  const addon = loadAddon();
-  const dev = findMouse(addon);
-  const id = dev.internalDeviceId;
-  const hueStep = 2 + (speed / 100) * 38; // degrees per frame: ~2 (slow) .. ~40 (fast)
-  let hue = 0;
-  console.log(`Colour flow on ${mouseName(dev)} at speed ${speed}. Press Ctrl+C to stop.`);
-  const timer = setInterval(() => {
-    const [r, g, b] = hsvToRgb(hue, 1, 1);
-    try { addon.mouseSetLogoModeStaticNoStore(id, new Uint8Array([r, g, b])); } catch (_) { /* transient */ }
-    hue = (hue + hueStep) % 360;
-  }, 150);
-  const stop = () => {
-    clearInterval(timer);
-    try { addon.closeAllDevices(); } catch (_) { /* ignore */ }
-    console.log('\nStopped.');
-    process.exit(0);
-  };
-  process.on('SIGINT', stop);
-}
-
 function cmdDevices() {
   const addon = loadAddon();
   console.log(JSON.stringify(addon.getAllDevices(), null, 2));
@@ -246,10 +212,8 @@ Usage:
   ornata all <hex> [--bright 0..100]     set the whole keyboard to one color
   ornata brightness <0..100>             set keyboard brightness only
   ornata off                             turn all keys off
-  ornata mouse <color <hex>|spectrum|wave [1|2]|flow [--speed 1..100]|off|
-                brightness <0..100>|dpi <n>|info>
-                                         control a connected Razer mouse (Basilisk V3);
-                                         'flow' is a speed-adjustable colour cycle
+  ornata mouse <color <hex>|spectrum|wave [1|2]|off|brightness <0..100>|dpi <n>|info>
+                                         control a connected Razer mouse (Basilisk V3)
   ornata groups                          list built-in key groups
   ornata list                            list all key names and coordinates
   ornata walk [ms]                       light each matrix cell in turn (mapping aid)

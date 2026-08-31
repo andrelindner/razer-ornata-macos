@@ -102,9 +102,8 @@ whether the keyboard is reachable and tells you if the app is still holding it.
 - The on-screen keyboard is a **live WYSIWYG preview** — it always reflects your
   assigned colors, background and group edits, even before you apply.
 - A **Mouse** panel for a connected Razer mouse (e.g. Basilisk V3): set a static
-  color, Spectrum, Wave, a speed-adjustable **colour flow**, turn its lighting
-  off, adjust brightness, and set the DPI. It lights the mouse as a single zone
-  (see [Mouse](#mouse) below).
+  color, Spectrum or Wave, turn its lighting off, adjust brightness, and set the
+  DPI. It lights the mouse as a single zone (see [Mouse](#mouse) below).
 
 ## The CLI
 
@@ -215,34 +214,20 @@ If a Razer mouse is connected (developed against the **Basilisk V3**, PID
 the CLI:
 
 ```bash
-node src/ornata.js mouse color <hex>        # static color
-node src/ornata.js mouse spectrum           # cycling spectrum
-node src/ornata.js mouse wave [1|2]         # hardware wave (optional direction)
-node src/ornata.js mouse flow [--speed N]   # speed-adjustable colour flow (1..100)
-node src/ornata.js mouse off                # lighting off
-node src/ornata.js mouse brightness 0..100  # brightness
-node src/ornata.js mouse dpi <100..30000>   # sensor DPI
-node src/ornata.js mouse info               # name + current DPI
+node src/ornata.js mouse color <hex>       # static color
+node src/ornata.js mouse spectrum          # cycling spectrum
+node src/ornata.js mouse wave [1|2]        # wave (optional direction)
+node src/ornata.js mouse off               # lighting off
+node src/ornata.js mouse brightness 0..100 # brightness
+node src/ornata.js mouse dpi <100..30000>  # sensor DPI
+node src/ornata.js mouse info              # name + current DPI
 ```
 
 The mouse is lit as **one zone** (the driver's whole-mouse lighting mode) — the
 same set of effects razer-macos offers for it. Per-zone underglow / individual
 LEDs are **not** exposed by this driver, so unlike the keyboard there is no
-per-LED custom frame for the mouse. As with the keyboard, quit the “Razer macOS”
-app first.
-
-### Adjusting the wave speed
-
-The **hardware wave** effect has no speed parameter — this driver (and razer-macos
-itself) only exposes its direction. To get a **speed-controllable** moving colour,
-use **colour flow** instead: it cycles the mouse's zone smoothly through the hue
-wheel at a speed you choose. In the GUI, press **Flow ▶** and drag the **Flow
-speed** slider; on the CLI, run `mouse flow --speed <1..100>` (runs until Ctrl+C).
-
-Colour flow is software-driven (the tool sends the colour many times per second),
-so it only runs while the GUI tab is open / the CLI command is running — pick a
-plain static colour, Spectrum or the hardware Wave if you want something that
-keeps going on its own.
+per-LED custom frame for the mouse. Static color, Spectrum, Wave, brightness and
+DPI all work. As with the keyboard, quit the “Razer macOS” app first.
 
 ## Scene files
 
