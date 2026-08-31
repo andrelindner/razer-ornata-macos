@@ -16,95 +16,11 @@
 const path = require('path');
 const fs = require('fs');
 const { ROWS, COLS, KEYS, GROUPS, expand } = require('./layout');
-
-const ADDON_PATH = path.join(__dirname, '..', 'addon.node');
-
-// Product IDs of Ornata keyboards that share this 6x22 layout.
-const ORNATA_PIDS = { 542: 'Ornata Chroma', 543: 'Ornata', 605: 'Ornata Chroma V2' };
-
-function loadAddon() {
-  if (!fs.existsSync(ADDON_PATH)) {
-    fail(
-      'addon.node not found.\n' +
-      'Run ./setup.sh once to copy it out of the installed "Razer macOS.app".'
-    );
-  }
-  try {
-    return require(ADDON_PATH);
-  } catch (e) {
-    fail('could not load addon.node: ' + e.message);
-  }
-}
-
-function findKeyboard(addon) {
-  let devices;
-  try {
-    devices = addon.getAllDevices();
-  } catch (e) {
-    fail('getAllDevices failed: ' + e.message);
-  }
-  const kbd = (devices || []).find((d) => ORNATA_PIDS[d.productId]);
-  if (!kbd) {
-    if (!devices || devices.length === 0) {
-      fail(
-        'No Razer device could be opened.\n' +
-        'Quit the "Razer macOS" menu-bar app first — it holds the device open\n' +
-        '(exclusive access), which blocks this tool. Then try again.'
-      );
-    }
-    fail('Ornata not found. Devices seen: ' + JSON.stringify(devices));
-  }
-  return kbd;
-}
-
-// hex ("#rrggbb" / "rrggbb" / "#rgb") -> [r,g,b]
-function parseColor(hex) {
-  let h = String(hex).trim().replace(/^#/, '');
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
-  if (!/^[0-9a-fA-F]{6}$/.test(h)) throw new Error(`bad color "${hex}"`);
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
-}
-
-// Build a ROWS x COLS x 3 frame filled with a background color.
-function blankFrame(bg) {
-  const frame = [];
-  for (let r = 0; r < ROWS; r++) {
-    const row = [];
-    for (let c = 0; c < COLS; c++) row.push([bg[0], bg[1], bg[2]]);
-    frame.push(row);
-  }
-  return frame;
-}
-
-function applyFrame(addon, id, frame) {
-  for (let r = 0; r < ROWS; r++) {
-    const payload = [r, 0, COLS - 1];
-    for (let c = 0; c < COLS; c++) payload.push(frame[r][c][0], frame[r][c][1], frame[r][c][2]);
-    addon.kbdSetCustomFrame(id, new Uint8Array(payload));
-  }
-  addon.kbdSetModeCustom(id);
-}
-
-// Brightness input is a percentage 0..100; the device wants 0..255.
-function parseBrightness(pct) {
-  const n = Number(pct);
-  if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error(`brightness must be 0..100, got "${pct}"`);
-  return Math.round((n / 100) * 255);
-}
-
-function setBrightness(addon, id, pct) {
-  addon.KbdSetBrightness(id, parseBrightness(pct));
-}
-
-function withKeyboard(fn) {
-  const addon = loadAddon();
-  const kbd = findKeyboard(addon);
-  try {
-    fn(addon, kbd);
-  } finally {
-    try { addon.closeAllDevices(); } catch (_) { /* ignore */ }
-  }
-}
+const {
+  ORNATA_PIDS,
+  parseColor, blankFrame, applyFrame,
+  setBrightness, withKeyboard, loadAddon,
+} = require('./engine');
 
 // ---- commands ---------------------------------------------------------------
 

@@ -3,6 +3,9 @@
 Per-key RGB lighting for the **Razer Ornata Chroma** (PID `0x021E`) on macOS —
 including Apple Silicon and macOS 26 (Tahoe), where it was developed and tested.
 
+Comes with both a **command-line tool** and a **local web GUI** (a visual
+keyboard you paint with your mouse).
+
 ## Why this exists
 
 Razer **Synapse 4 for Mac does not support the Ornata Chroma** — Synapse loads a
@@ -46,39 +49,56 @@ to this repo; `setup.sh` copies it out of the app you installed.
 The last step of `setup.sh` applies the **default profile** (below), so the
 keyboard is lit right after installation.
 
-## Default profile
-
-Straight after setup — and until you change it — the keyboard uses this profile
-([`scenes/default.json`](scenes/default.json)):
-
-| Keys | Colour |
-|------|--------|
-| Function row (F1–F12) | bright purple `#c060ff` |
-| Letters (A–Z) and the number row (1–0) | vivid green `#00ff33` |
-| Arrow keys | light blue `#33ccff` |
-| Number pad | red `#ff0000` |
-| Print Screen, Insert, Page Up & the rest of that cluster (Scroll Lock, Pause, Home, Delete, End, Page Down) | pink `#ff2e97` |
-
-Brightness is set to 100 %. Every other key (Esc, Tab, modifiers, Space, Enter…)
-stays off, so you have a clean canvas to build on.
-
-The profile lives in the keyboard's own memory, so it persists until you apply
-something else. Re-apply it at any time with:
-
-```bash
-node src/ornata.js default
-```
-
-Edit `scenes/default.json` to change what "default" means for you — it's a normal
-scene file (see [Scene files](#scene-files)).
-
 ## Important: quit the Razer app first
 
 The razer-macos menu-bar app opens the keyboard **exclusively**. While it runs,
-this tool cannot talk to the device (`Unable to open USB device`). Quit it before
-using the commands below (menu-bar icon → Quit, or `osascript -e 'quit app "Razer macOS"'`).
+this tool cannot talk to the device (you'll see empty device lists / errors, and
+the GUI shows *"Quit 'Razer macOS' app first"*). Quit it before using either the
+CLI or the GUI (menu-bar icon → Quit, or `osascript -e 'quit app "Razer macOS"'`).
 
-## Usage
+Launching razer-macos again later may overwrite your custom frame with its own
+saved effect, so use one or the other.
+
+## The GUI
+
+A small, self-contained web app — a visual Ornata keyboard you paint with your
+mouse and push to the hardware. No frameworks, no external CDNs; a tiny Node
+server (built-ins only) does the device I/O and serves one HTML page.
+
+### Launch
+
+```bash
+npm run gui          # or: node src/server.js  (or the `ornata-gui` bin)
+```
+
+It starts a server bound to `127.0.0.1` only, prints the URL, and opens your
+browser at **http://127.0.0.1:8787/**. (Set `ORNATA_GUI_PORT` to change the port,
+`ORNATA_GUI_NO_OPEN=1` to skip auto-opening the browser.) Press `Ctrl+C` to stop.
+
+Remember to **quit "Razer macOS" first** — the status pill in the top-right shows
+whether the keyboard is reachable and tells you if the app is still holding it.
+
+### What you can do
+
+- **Visual keyboard** laid out like the Ornata, using the real matrix
+  coordinates from `src/layout.js`, with every key labelled. Cells that have no
+  physical key on the Ornata are simply not shown.
+- **Click a key** to paint it with the current color; **click-and-drag** across
+  keys to paint many at once; **right-click** (or Shift-click) a key to clear it
+  back to the background.
+- A native **color picker** plus a **hex** field and quick-pick swatches.
+- **Group buttons** (WASD, ARROWS, LETTERS, FKEYS, NUMROW, NUMPAD, MODIFIERS,
+  NAV, ALL) apply the current color to a whole group in one click.
+- A **background** color and a **brightness** slider (0–100%).
+- **Apply to keyboard** pushes the current layout to the hardware; **Turn off**
+  blacks everything out; **Load default profile** loads and applies the bundled
+  default; **Reset** clears the editor (without touching the keyboard).
+- **Save** the current layout as a scene `.json` (write it into `scenes/`, or
+  download it) and **Load** any bundled scene back into the editor to tweak it.
+- The on-screen keyboard is a **live WYSIWYG preview** — it always reflects your
+  assigned colors, background and group edits, even before you apply.
+
+## The CLI
 
 ```bash
 # Light specific keys / groups on a background color
@@ -114,6 +134,9 @@ node src/ornata.js walk 400
 Colors are hex: `ff0000`, `#ff0000`, or short `#f00`.
 Brightness is a percentage `0..100`.
 
+Optional convenience: install as commands with `npm link`, then run
+`ornata key W ff0000 …` and `ornata-gui` directly.
+
 ### Targeting keys
 
 A target can be any of:
@@ -124,9 +147,9 @@ A target can be any of:
 - **comma list** — `W,A,S,D` (one color to many keys)
 - **group** — a named set of keys (below)
 
-### Groups
+### Built-in groups
 
-Assign one color to a whole group at once:
+Assign one color to a whole group at once (in the CLI or the GUI):
 
 | Group | Keys |
 |-------|------|
@@ -149,6 +172,27 @@ Scenes can also define **their own groups** (see below).
 Run `node src/ornata.js list` for the full key map. Not every matrix cell has a
 physical key (the Ornata has gaps in the top-right/media area); unused cells stay
 whatever the background sets.
+
+## Default profile
+
+Straight after setup — and until you change it — the keyboard uses this profile
+([`scenes/default.json`](scenes/default.json)):
+
+| Keys | Colour |
+|------|--------|
+| Function row (F1–F12) | bright purple `#c060ff` |
+| Letters (A–Z) and the number row (1–0) | vivid green `#00ff33` |
+| Arrow keys | light blue `#33ccff` |
+| Number pad | red `#ff0000` |
+| Print Screen, Insert, Page Up & the rest of that cluster (Scroll Lock, Pause, Home, Delete, End, Page Down) | pink `#ff2e97` |
+
+Brightness is set to 100 %. Every other key (Esc, Tab, modifiers, Space, Enter…)
+stays off, so you have a clean canvas to build on. The profile lives in the
+keyboard's own memory, so it persists until you apply something else.
+
+Re-apply it any time with `node src/ornata.js default` (CLI) or **Load default
+profile** (GUI). Edit `scenes/default.json` to change what "default" means for
+you — it's a normal scene file (see [Scene files](#scene-files)).
 
 ## Scene files
 
@@ -175,19 +219,28 @@ key, a comma list, a built-in group, or one of your own groups:
 }
 ```
 
-See [`scenes/`](scenes) and its [README](scenes/README.md) for more examples
-(`default.json`, `wasd.json`, `arrows.json`, `gaming.json`).
+Apply a scene from the CLI with `node src/ornata.js apply scenes/<name>.json`,
+or load and edit it in the GUI. See [`scenes/`](scenes) and its
+[README](scenes/README.md) for more examples (`default.json`, `wasd.json`,
+`arrows.json`, `gaming.json`).
 
 ## Notes & limitations
 
 - The custom frame is shown at the keyboard's current **brightness**. If the
   board looks dark, raise it with `ornata brightness 100` (or the `--bright`
-  flag / a scene's `"brightness"` field).
+  flag / a scene's `"brightness"` field / the GUI slider).
 - The frame lives in the keyboard until you change it, set another effect, or
-  power-cycle the board. Launching razer-macos again may overwrite it with its
-  own saved effect, so use one or the other.
-- Optional convenience: install as a command with `npm link`, then just run
-  `ornata key W ff0000 …`.
+  power-cycle the board.
+
+## Architecture
+
+The device logic lives in one shared module, [`src/engine.js`](src/engine.js)
+(find the keyboard, build a frame from a `{ background, keys, groups, brightness }`
+spec, apply it, set brightness, probe status). Both the CLI
+([`src/ornata.js`](src/ornata.js)) and the GUI server
+([`src/server.js`](src/server.js)) use it, so they behave identically. The
+key→coordinate table is in [`src/layout.js`](src/layout.js) and is reused
+everywhere — it is never duplicated.
 
 ## How it works
 

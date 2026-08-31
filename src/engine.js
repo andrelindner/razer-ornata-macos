@@ -1,0 +1,184 @@
+'use strict';
+
+// razer-ornata-macos — shared device engine.
+//
+// Copyright (C) 2025 André Lindner
+//
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by the Free
+// Software Foundation, either version 2 of the License, or (at your option)
+// any later version.
+//
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+//
+// The device I/O in this file wraps the native addon (addon.node) borrowed from
+// razer-macos / librazermacos (also GPL). It centralises everything that talks
+// to the keyboard so that both the CLI (ornata.js) and the web GUI (server.js)
+// share one code path.
+
+const path = require('path');
+const fs = require('fs');
+const { ROWS, COLS, expand } = require('./layout');
+
+const ADDON_PATH = path.join(__dirname, '..', 'addon.node');
+
+// Product IDs of Ornata keyboards that share this 6x22 layout.
+const ORNATA_PIDS = { 542: 'Ornata Chroma', 543: 'Ornata', 605: 'Ornata Chroma V2' };
+
+// A device-access error the caller can recognise: it means the Razer macOS app
+// (or something else) is holding the keyboard open exclusively.
+class DeviceBusyError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'DeviceBusyError';
+    this.code = 'DEVICE_BUSY';
+  }
+}
+
+function loadAddon() {
+  if (!fs.existsSync(ADDON_PATH)) {
+    throw new Error(
+      'addon.node not found.\n' +
+      'Run ./setup.sh once to copy it out of the installed "Razer macOS.app".'
+    );
+  }
+  try {
+    return require(ADDON_PATH);
+  } catch (e) {
+    throw new Error('could not load addon.node: ' + e.message);
+  }
+}
+
+function findKeyboard(addon) {
+  let devices;
+  try {
+    devices = addon.getAllDevices();
+  } catch (e) {
+    throw new Error('getAllDevices failed: ' + e.message);
+  }
+  const kbd = (devices || []).find((d) => ORNATA_PIDS[d.productId]);
+  if (!kbd) {
+    if (!devices || devices.length === 0) {
+      throw new DeviceBusyError(
+        'No Razer device could be opened.\n' +
+        'Quit the "Razer macOS" menu-bar app first — it holds the device open\n' +
+        '(exclusive access), which blocks this tool. Then try again.'
+      );
+    }
+    throw new Error('Ornata not found. Devices seen: ' + JSON.stringify(devices));
+  }
+  return kbd;
+}
+
+// hex ("#rrggbb" / "rrggbb" / "#rgb") -> [r,g,b]
+function parseColor(hex) {
+  let h = String(hex).trim().replace(/^#/, '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) throw new Error(`bad color "${hex}"`);
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+// Build a ROWS x COLS x 3 frame filled with a background color.
+function blankFrame(bg) {
+  const frame = [];
+  for (let r = 0; r < ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < COLS; c++) row.push([bg[0], bg[1], bg[2]]);
+    frame.push(row);
+  }
+  return frame;
+}
+
+// Build a full frame from a scene-style spec:
+//   { background?, groups?, keys? }
+// Returns { frame, litCells }. Does no device I/O.
+function buildFrame(spec) {
+  const bg = parseColor((spec && spec.background) || '#000000');
+  const frame = blankFrame(bg);
+  const extraGroups = (spec && spec.groups) || {};
+  let litCells = 0;
+  for (const [key, color] of Object.entries((spec && spec.keys) || {})) {
+    const rgb = parseColor(color);
+    for (const [r, c] of expand(key, extraGroups)) { frame[r][c] = rgb; litCells++; }
+  }
+  return { frame, litCells };
+}
+
+function applyFrame(addon, id, frame) {
+  for (let r = 0; r < ROWS; r++) {
+    const payload = [r, 0, COLS - 1];
+    for (let c = 0; c < COLS; c++) payload.push(frame[r][c][0], frame[r][c][1], frame[r][c][2]);
+    addon.kbdSetCustomFrame(id, new Uint8Array(payload));
+  }
+  addon.kbdSetModeCustom(id);
+}
+
+// Brightness input is a percentage 0..100; the device wants 0..255.
+function parseBrightness(pct) {
+  const n = Number(pct);
+  if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error(`brightness must be 0..100, got "${pct}"`);
+  return Math.round((n / 100) * 255);
+}
+
+function setBrightness(addon, id, pct) {
+  addon.KbdSetBrightness(id, parseBrightness(pct));
+}
+
+// Open the keyboard, run fn(addon, kbd), always close afterwards.
+// The return value of fn is passed through.
+function withKeyboard(fn) {
+  const addon = loadAddon();
+  const kbd = findKeyboard(addon);
+  try {
+    return fn(addon, kbd);
+  } finally {
+    try { addon.closeAllDevices(); } catch (_) { /* ignore */ }
+  }
+}
+
+// Probe for the keyboard without changing anything. Returns:
+//   { ok: true, productId, name, internalDeviceId }
+//   { ok: false, code: 'DEVICE_BUSY'|'NO_ADDON'|'ERROR', message }
+function probe() {
+  let addon;
+  try {
+    addon = loadAddon();
+  } catch (e) {
+    return { ok: false, code: 'NO_ADDON', message: e.message };
+  }
+  try {
+    const kbd = findKeyboard(addon);
+    return {
+      ok: true,
+      productId: kbd.productId,
+      name: ORNATA_PIDS[kbd.productId],
+      internalDeviceId: kbd.internalDeviceId,
+    };
+  } catch (e) {
+    return { ok: false, code: e.code || 'ERROR', message: e.message };
+  } finally {
+    try { addon.closeAllDevices(); } catch (_) { /* ignore */ }
+  }
+}
+
+// Apply a scene-style spec to the keyboard. Optionally set brightness first.
+// Returns { litCells, name } (device product name).
+function applySpec(spec) {
+  const { frame, litCells } = buildFrame(spec);
+  return withKeyboard((addon, kbd) => {
+    if (spec && spec.brightness !== undefined) setBrightness(addon, kbd.internalDeviceId, spec.brightness);
+    applyFrame(addon, kbd.internalDeviceId, frame);
+    return { litCells, name: ORNATA_PIDS[kbd.productId] };
+  });
+}
+
+module.exports = {
+  ROWS, COLS, ORNATA_PIDS, ADDON_PATH,
+  DeviceBusyError,
+  loadAddon, findKeyboard,
+  parseColor, blankFrame, buildFrame, applyFrame,
+  parseBrightness, setBrightness,
+  withKeyboard, probe, applySpec,
+};
