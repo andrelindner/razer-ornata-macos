@@ -148,19 +148,25 @@
     </div>
 
     <div class="card">
-      <h2>Scenes</h2>
+      <h2>Profiles &amp; scenes</h2>
       <div class="row">
-        <label>Load</label>
+        <label>Load bundled</label>
         <select id="sceneSelect"><option value="">— choose a scene —</option></select>
         <button id="loadScene" type="button">Load</button>
       </div>
       <div class="row">
+        <label>Load from file</label>
+        <button id="loadFile" type="button">Choose .json…</button>
+        <input type="file" id="fileInput" accept=".json,application/json" style="display:none">
+        <span class="hint" style="margin:0">a profile you saved or downloaded earlier</span>
+      </div>
+      <div class="row">
         <label>Save as</label>
-        <input type="text" id="saveName" placeholder="my-scene" style="width:150px" spellcheck="false">
+        <input type="text" id="saveName" placeholder="my-profile" style="width:150px" spellcheck="false">
         <button id="saveScene" type="button">Save to scenes/</button>
         <button id="downloadScene" type="button">Download .json</button>
       </div>
-      <p class="hint">Saving writes a <code>.json</code> into the project’s <code>scenes/</code> folder.</p>
+      <p class="hint">A profile stores the current colors, background and brightness. <b>Save to scenes/</b> writes it into the project’s <code>scenes/</code> folder; <b>Download .json</b> saves it anywhere. Load it again with <b>Load from file</b>.</p>
     </div>
   </div>
 </main>
@@ -418,6 +424,24 @@ function wireControls() {
     if (d.error) { toast(d.error, true); return; }
     loadSceneObject(d.scene);
     toast(`Loaded ${name} into editor`);
+  };
+  $("#loadFile").onclick = () => $("#fileInput").click();
+  $("#fileInput").onchange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const scene = JSON.parse(reader.result);
+        loadSceneObject(scene);
+        toast(`Loaded ${file.name} into editor`);
+      } catch (err) {
+        toast("Could not read that file: " + err.message, true);
+      }
+    };
+    reader.onerror = () => toast("Could not read that file", true);
+    reader.readAsText(file);
+    e.target.value = "";  // allow re-selecting the same file later
   };
   $("#saveScene").onclick = async () => {
     let name = $("#saveName").value.trim();

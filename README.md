@@ -93,8 +93,11 @@ whether the keyboard is reachable and tells you if the app is still holding it.
 - **Apply to keyboard** pushes the current layout to the hardware; **Turn off**
   blacks everything out; **Load default profile** loads and applies the bundled
   default; **Reset** clears the editor (without touching the keyboard).
-- **Save** the current layout as a scene `.json` (write it into `scenes/`, or
-  download it) and **Load** any bundled scene back into the editor to tweak it.
+- **Profiles** — save everything you've set (all key colors, the background and
+  the brightness) as a profile: **Save to scenes/** writes a `.json` into the
+  project's `scenes/` folder, or **Download .json** saves it anywhere you like.
+  Load one back with **Load from file** (pick any `.json` from your disk) or
+  **Load bundled** (the scenes that ship with the project) to keep editing it.
 - The on-screen keyboard is a **live WYSIWYG preview** — it always reflects your
   assigned colors, background and group edits, even before you apply.
 

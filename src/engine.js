@@ -115,11 +115,15 @@ function applyFrame(addon, id, frame) {
   addon.kbdSetModeCustom(id);
 }
 
-// Brightness input is a percentage 0..100; the device wants 0..255.
+// Brightness is a percentage 0..100 — and that is exactly what the addon's
+// KbdSetBrightness expects (the razer-macos app drives this same keyboard with a
+// 0..100 slider). Do NOT rescale to 0..255: sending 255 overshoots the valid
+// range and the firmware lands on a dim/garbage level, which looked like "100%
+// is still dark". Pass the percentage straight through.
 function parseBrightness(pct) {
   const n = Number(pct);
   if (!Number.isFinite(n) || n < 0 || n > 100) throw new Error(`brightness must be 0..100, got "${pct}"`);
-  return Math.round((n / 100) * 255);
+  return Math.round(n);
 }
 
 function setBrightness(addon, id, pct) {
