@@ -91,7 +91,10 @@ npm run pack          # electron-builder --dir       -> app/dist/mac-arm64/Razer
 npm run dist          # electron-builder --mac dmg pkg -> app/dist/*.dmg  +  app/dist/*.pkg
 ```
 
-`npm run dist` produces two installers side by side:
+`npm run dist` produces two installers side by side (build byproducts —
+the unpacked `mac-arm64/` app, blockmaps, debug logs — are removed
+automatically afterwards by the `postdist` script, so `dist/` only holds
+the two installers):
 
 - **`Razer Ornata Lighting-<version>-arm64.dmg`** — drag-to-Applications disk image.
 - **`Razer Ornata Lighting-<version>-arm64.pkg`** — installer package that puts the

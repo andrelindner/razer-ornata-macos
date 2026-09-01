@@ -10,7 +10,8 @@
     "start": "electron .",
     "smoke": "node src/smoke.js",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder --mac dmg pkg"
+    "dist": "electron-builder --mac dmg pkg",
+    "postdist": "cd dist && rm -rf mac-arm64 builder-debug.yml de.lindner.razer-ornata-macos.plist .DS_Store *.blockmap"
   },
   "build": {
     "appId": "de.lindner.razer-ornata-macos",
