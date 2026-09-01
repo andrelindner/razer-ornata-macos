@@ -25,13 +25,13 @@ KEY_BASE = (0x14, 0x17, 0x1c)
 KEY_EDGE = (0x2a, 0x30, 0x3a)
 KEY_FACE = (0x1c, 0x20, 0x28)
 
-# 3x3 grid: five lit keys — corners + center
+# 3x3 grid: five lit keys, loosely scattered so it reads organic, not rigid
 LIT = {
-    (0, 0): BLUE,
-    (0, 2): GREEN,
-    (1, 1): ORANGE,
-    (2, 0): PURPLE,
-    (2, 2): RED,
+    (0, 1): GREEN,
+    (1, 0): BLUE,
+    (1, 2): RED,
+    (2, 1): ORANGE,
+    (2, 2): PURPLE,
 }
 
 
