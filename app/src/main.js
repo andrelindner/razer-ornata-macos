@@ -331,7 +331,7 @@ async function chooseBackupFolder() {
   if (res.canceled || !res.filePaths.length) return;
   config.backupDir = res.filePaths[0];
   saveConfig();
-  refreshTrayMenu();
+  refreshMenus();
   try {
     const n = backupAllProfiles(); // seed the folder with the current profiles
     setTrayTitleFlash(`Backup folder set (${n} copied)`);
@@ -340,66 +340,71 @@ async function chooseBackupFolder() {
   }
 }
 
-function buildTrayMenu() {
+// Shared Settings submenu — used by both the tray menu and the application
+// menu bar, so the settings are reachable from either place.
+function settingsSubmenuTemplate() {
   const login = app.getLoginItemSettings();
+  return [
+    {
+      label: 'Start at Login',
+      type: 'checkbox',
+      checked: login.openAtLogin,
+      click: (item) => {
+        app.setLoginItemSettings({ openAtLogin: item.checked, openAsHidden: true });
+        refreshMenus();
+      },
+    },
+    {
+      label: 'Start Minimized (Menu Bar Only)',
+      type: 'checkbox',
+      checked: config.startMinimized,
+      click: (item) => { config.startMinimized = item.checked; saveConfig(); refreshMenus(); },
+    },
+    {
+      label: 'Apply Default Profile on Launch',
+      type: 'checkbox',
+      checked: config.applyOnLaunch,
+      click: (item) => { config.applyOnLaunch = item.checked; saveConfig(); refreshMenus(); },
+    },
+    { type: 'separator' },
+    { label: 'Choose Backup Folder…', click: () => chooseBackupFolder() },
+    {
+      label: config.backupDir ? `Backups: ${config.backupDir}` : 'Backups: not configured',
+      enabled: false,
+    },
+    {
+      label: 'Back Up Profiles Now',
+      enabled: !!config.backupDir,
+      click: () => {
+        try { setTrayTitleFlash(`${backupAllProfiles()} profiles backed up`); }
+        catch (e) { dialog.showMessageBox({ type: 'error', message: 'Backup failed', detail: e.message }); }
+      },
+    },
+    {
+      label: 'Show Backup Folder',
+      enabled: !!config.backupDir,
+      click: () => shell.openPath(config.backupDir),
+    },
+  ];
+}
+
+function buildTrayMenu() {
   return Menu.buildFromTemplate([
     { label: 'Show / Hide Window', click: () => (mainWindow && mainWindow.isVisible() ? mainWindow.hide() : showWindow()) },
     { type: 'separator' },
     { label: 'Apply Default Profile', click: () => loadDefaultProfile() },
     { label: 'Turn Keyboard Off', click: () => trayApply(() => { const r = engine.applySpec({ background: '#000000', keys: {} }); return { device: r.name }; }, 'Keyboard off') },
     { type: 'separator' },
-    {
-      label: 'Settings',
-      submenu: [
-        {
-          label: 'Start at Login',
-          type: 'checkbox',
-          checked: login.openAtLogin,
-          click: (item) => {
-            app.setLoginItemSettings({ openAtLogin: item.checked, openAsHidden: true });
-            refreshTrayMenu();
-          },
-        },
-        {
-          label: 'Start Minimized (Menu Bar Only)',
-          type: 'checkbox',
-          checked: config.startMinimized,
-          click: (item) => { config.startMinimized = item.checked; saveConfig(); },
-        },
-        {
-          label: 'Apply Default Profile on Launch',
-          type: 'checkbox',
-          checked: config.applyOnLaunch,
-          click: (item) => { config.applyOnLaunch = item.checked; saveConfig(); },
-        },
-        { type: 'separator' },
-        { label: 'Choose Backup Folder…', click: () => chooseBackupFolder() },
-        {
-          label: config.backupDir ? `Backups: ${config.backupDir}` : 'Backups: not configured',
-          enabled: false,
-        },
-        {
-          label: 'Back Up Profiles Now',
-          enabled: !!config.backupDir,
-          click: () => {
-            try { setTrayTitleFlash(`${backupAllProfiles()} profiles backed up`); }
-            catch (e) { dialog.showMessageBox({ type: 'error', message: 'Backup failed', detail: e.message }); }
-          },
-        },
-        {
-          label: 'Show Backup Folder',
-          enabled: !!config.backupDir,
-          click: () => shell.openPath(config.backupDir),
-        },
-      ],
-    },
+    { label: 'Settings', submenu: settingsSubmenuTemplate() },
     { type: 'separator' },
     { label: 'Quit', click: () => { isQuitting = true; app.quit(); } },
   ]);
 }
 
-function refreshTrayMenu() {
+// Rebuild both menus so checkbox/backup state stays in sync everywhere.
+function refreshMenus() {
   if (tray) tray.setContextMenu(buildTrayMenu());
+  buildAppMenu();
 }
 
 function createTray() {
@@ -410,7 +415,10 @@ function createTray() {
   tray = new Tray(img);
   tray.setToolTip('Razer Ornata Lighting');
   tray.setContextMenu(buildTrayMenu());
-  tray.on('click', () => showWindow());
+  // NOTE: no tray.on('click') handler — clicking must only open the menu.
+  // A click handler that focuses the window steals focus from the just-opened
+  // menu, which made it snap shut (worst with a fullscreen/maximized window).
+  // "Show / Hide Window" in the menu covers opening the window.
 }
 
 function buildAppMenu() {
@@ -421,11 +429,14 @@ function buildAppMenu() {
       submenu: [
         { role: 'about' },
         { type: 'separator' },
+        { label: 'Settings', submenu: settingsSubmenuTemplate() },
+        { type: 'separator' },
         { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
         { type: 'separator' },
         { label: 'Quit', accelerator: 'Cmd+Q', click: () => { isQuitting = true; app.quit(); } },
       ],
     }] : []),
+    { label: 'Settings', submenu: settingsSubmenuTemplate() },
     {
       label: 'Keyboard',
       submenu: [
