@@ -25,12 +25,10 @@ KEY_BASE = (0x14, 0x17, 0x1c)
 KEY_EDGE = (0x2a, 0x30, 0x3a)
 KEY_FACE = (0x1c, 0x20, 0x28)
 
+# 3x3 grid, lit like the wordmark mark: green top-right, purple bottom-left
 LIT = {
-    (0, 1): PURPLE,
-    (1, 3): BLUE,
-    (2, 0): GREEN,
-    (2, 2): ORANGE,
-    (3, 2): RED,
+    (0, 2): GREEN,
+    (2, 0): PURPLE,
 }
 
 
@@ -81,13 +79,13 @@ def build_icon(size=S):
     d = ImageDraw.Draw(img)
     sc = n / S
 
-    key = 150 * sc
-    gap = 26 * sc
-    total = 4 * key + 3 * gap
+    key = 196 * sc
+    gap = 34 * sc
+    total = 3 * key + 2 * gap
     x0 = (n - total) / 2
     y0 = (n - total) / 2
-    for row in range(4):
-        for col in range(4):
+    for row in range(3):
+        for col in range(3):
             x = x0 + col * (key + gap)
             y = y0 + row * (key + gap)
             draw_key(d, x, y, key, LIT.get((row, col)))
@@ -102,7 +100,7 @@ def build_icon(size=S):
 
 
 def build_tray(px):
-    """Menu-bar template: solid 3x2 keycap glyph (black + alpha)."""
+    """Menu-bar template: solid 3x3 keycap glyph (black + alpha)."""
     ss = 8
     n = px * ss
     img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
@@ -110,9 +108,9 @@ def build_tray(px):
     u = n / 22.0
     key, gap = 4.6 * u, 1.4 * u
     total_w = 3 * key + 2 * gap
-    total_h = 2 * key + gap
+    total_h = total_w
     x0, y0 = (n - total_w) / 2, (n - total_h) / 2
-    for row in range(2):
+    for row in range(3):
         for col in range(3):
             x = x0 + col * (key + gap)
             y = y0 + row * (key + gap)
@@ -121,51 +119,11 @@ def build_tray(px):
     return img.resize((px, px), Image.LANCZOS)
 
 
-def build_logo(dark=True):
-    W, H = 1400, 360
-    n_w, n_h = W * SS, H * SS
-    img = Image.new("RGBA", (n_w, n_h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    if dark:
-        for i in range(n_h):
-            t = i / (n_h - 1)
-            c = tuple(int(a + (b - a) * t) for a, b in
-                      zip((0x1a, 0x1d, 0x23), (0x0b, 0x0c, 0x0f)))
-            d.line([(0, i), (n_w, i)], fill=c + (255,))
-
-    # mark: 2x2 mini key grid, one lit per profile color
-    mk, mg = 104 * SS, 18 * SS
-    mx, my = 64 * SS, (n_h - (2 * mk + mg)) / 2
-    mini = {(0, 1): GREEN, (1, 0): PURPLE}
-    for row in range(2):
-        for col in range(2):
-            x = mx + col * (mk + mg)
-            y = my + row * (mk + mg)
-            draw_key(d, x, y, mk, mini.get((row, col)))
-
-    tx = mx + 2 * mk + mg + 62 * SS
-    bold = ImageFont.truetype(FONT, 122 * SS, index=0)     # Bold
-    demi = ImageFont.truetype(FONT, 122 * SS, index=2)     # Demi Bold
-    small = ImageFont.truetype(FONT, 30 * SS, index=2)
-    ink = (0xf2, 0xf6, 0xf2)
-    y_word = n_h * 0.44
-    d.text((tx, y_word), "Ornata", font=bold, fill=ink, anchor="lm")
-    w1 = d.textlength("Ornata", font=bold)
-    d.text((tx + w1 + 34 * SS, y_word), "Lighting", font=demi, fill=GREEN, anchor="lm")
-    # tagline
-    d.text((tx + 6 * SS, n_h * 0.75), "P E R - K E Y   R G B   ·   m a c O S",
-           font=small, fill=(0x8d, 0x96, 0xa4), anchor="lm")
-
-    return img.resize((W, H), Image.LANCZOS)
-
-
 def main():
     build_icon().save(SP + "keys_1024.png")
     build_tray(22).save(SP + "tray_22.png")
     build_tray(44).save(SP + "tray_44.png")
-    build_logo(dark=True).save(SP + "logo_dark.png")
-    build_logo(dark=False).save(SP + "logo_trans.png")
-    print("wrote keys_1024.png, tray, logos")
+    print("wrote keys_1024.png + tray")
 
 
 main()

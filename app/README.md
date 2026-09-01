@@ -117,17 +117,15 @@ same logic that works in dev (`../../cli/addon.node`).
 
 Build output (`dist/`) is gitignored and never committed.
 
-## App icon & logo
+## App icon
 
-The icon is a grid of keycaps on an anthracite squircle with a few keys lit in
-vivid per-key RGB colors — exactly what the app does. The matching wordmark
-([`assets/logo.png`](assets/logo.png)) pairs a mini key grid with
-"Ornata Lighting". Both are generated procedurally (no external assets, pure
-Pillow + the Avenir Next system font) by
-[`assets/make_icon.py`](assets/make_icon.py):
+The icon (which doubles as the logo — no wordmark) is a 3x3 grid of keycaps on
+an anthracite squircle with two keys lit in per-key RGB colors (green and
+purple) — exactly what the app does. It is generated procedurally (no external
+assets, pure Pillow) by [`assets/make_icon.py`](assets/make_icon.py):
 
 ```bash
-python3 assets/make_icon.py         # writes the 1024px icon + tray + logo
+python3 assets/make_icon.py         # writes the 1024px icon + tray templates
 # then rebuild the iconset -> assets/icon.icns with sips + iconutil
 ```
 
