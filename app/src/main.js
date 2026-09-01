@@ -97,6 +97,50 @@ function cleanScene(scene) {
   return out;
 }
 
+// --- app settings (persisted in userData/settings.json) ---------------------
+// startMinimized: launch with the window hidden (menu-bar only) — pair it with
+//                 "Start at Login" so profiles are active right after boot.
+// applyOnLaunch:  apply the default profile automatically on every launch.
+// backupDir:      folder that receives a copy of every saved color profile.
+const DEFAULT_CONFIG = { startMinimized: false, applyOnLaunch: true, backupDir: null };
+let config = { ...DEFAULT_CONFIG };
+
+function configPath() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+function loadConfig() {
+  try {
+    config = { ...DEFAULT_CONFIG, ...JSON.parse(fs.readFileSync(configPath(), 'utf8')) };
+  } catch (_) { config = { ...DEFAULT_CONFIG }; }
+}
+function saveConfig() {
+  try {
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+    fs.writeFileSync(configPath(), JSON.stringify(config, null, 2) + '\n', 'utf8');
+  } catch (_) { /* non-fatal */ }
+}
+
+// Copy one saved profile into the backup folder (if one is configured).
+function backupProfile(fullPath) {
+  if (!config.backupDir) return;
+  try {
+    fs.mkdirSync(config.backupDir, { recursive: true });
+    fs.copyFileSync(fullPath, path.join(config.backupDir, path.basename(fullPath)));
+  } catch (_) { /* backup is best-effort */ }
+}
+
+// Copy every bundled profile into the backup folder. Returns the count.
+function backupAllProfiles() {
+  if (!config.backupDir) return 0;
+  fs.mkdirSync(config.backupDir, { recursive: true });
+  let n = 0;
+  for (const f of listScenes()) {
+    fs.copyFileSync(path.join(scenesDir(), f), path.join(config.backupDir, f));
+    n += 1;
+  }
+  return n;
+}
+
 // Wrap an engine call so a DEVICE_BUSY / error becomes a structured result the
 // renderer can display, instead of throwing across IPC.
 function guard(fn) {
@@ -144,6 +188,7 @@ function registerIpc() {
     try {
       const full = scenePath(name);
       fs.writeFileSync(full, JSON.stringify(cleanScene(scene), null, 2) + '\n', 'utf8');
+      backupProfile(full); // mirror into the configured backup folder
       return { ok: true, name: path.basename(full) };
     } catch (e) {
       return { ok: false, error: e.message };
@@ -199,7 +244,7 @@ const TRAY_ICON_22_B64 =
 const TRAY_ICON_44_B64 =
   'iVBORw0KGgoAAAANSUhEUgAAACwAAAAsCAYAAAAehFoBAAABGUlEQVR4nO2WXUrFMBCFv7RFF+XdgAvQFx90YYoLuI+CT+7L39tcCgmkIZl7EVNaOR8MhckZmElIc0CIGY46vbHugcPC+l8PUtK01ptJFybcAXfAZaKb8p/AC/Ca5VvpPQbTMU1chSPxRtwkA7bU91bDQ/g+hqJ34DuLD2AE3pK6p4b6vtRgaad9WM81LolI11DvyQprnHMxltSfbHiVdGyMoZIfQ/wUji7mxoX0zhog3sjrE7+cKe6Tupb6/tyH4xZ4AC6yG/sF7IHn5DaPDfXe2mFrkFU8zR0bw1Vy8hLIS8yRlyggL7FKhkpeXgJ5iTnyEn+FvATyEshLROQl/kXDQyUvL4G8xEa8hDMK4lH4Ss1hYb0QFDgCdgmStZz5074AAAAASUVORK5CYII=';
 
-function createWindow() {
+function createWindow(startHidden) {
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 900,
@@ -217,7 +262,7 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  if (!startHidden) mainWindow.once('ready-to-show', () => mainWindow.show());
 
   // Open external links in the default browser, not inside the app.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -276,6 +321,87 @@ function loadDefaultProfile() {
   if (mainWindow) mainWindow.webContents.send('scene-loaded');
 }
 
+// Choose the folder that receives copies of saved color profiles.
+async function chooseBackupFolder() {
+  const res = await dialog.showOpenDialog({
+    title: 'Choose backup folder for color profiles',
+    defaultPath: config.backupDir || app.getPath('documents'),
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (res.canceled || !res.filePaths.length) return;
+  config.backupDir = res.filePaths[0];
+  saveConfig();
+  refreshTrayMenu();
+  try {
+    const n = backupAllProfiles(); // seed the folder with the current profiles
+    setTrayTitleFlash(`Backup folder set (${n} copied)`);
+  } catch (e) {
+    dialog.showMessageBox({ type: 'error', message: 'Backup failed', detail: e.message });
+  }
+}
+
+function buildTrayMenu() {
+  const login = app.getLoginItemSettings();
+  return Menu.buildFromTemplate([
+    { label: 'Show / Hide Window', click: () => (mainWindow && mainWindow.isVisible() ? mainWindow.hide() : showWindow()) },
+    { type: 'separator' },
+    { label: 'Apply Default Profile', click: () => loadDefaultProfile() },
+    { label: 'Turn Keyboard Off', click: () => trayApply(() => { const r = engine.applySpec({ background: '#000000', keys: {} }); return { device: r.name }; }, 'Keyboard off') },
+    { type: 'separator' },
+    {
+      label: 'Settings',
+      submenu: [
+        {
+          label: 'Start at Login',
+          type: 'checkbox',
+          checked: login.openAtLogin,
+          click: (item) => {
+            app.setLoginItemSettings({ openAtLogin: item.checked, openAsHidden: true });
+            refreshTrayMenu();
+          },
+        },
+        {
+          label: 'Start Minimized (Menu Bar Only)',
+          type: 'checkbox',
+          checked: config.startMinimized,
+          click: (item) => { config.startMinimized = item.checked; saveConfig(); },
+        },
+        {
+          label: 'Apply Default Profile on Launch',
+          type: 'checkbox',
+          checked: config.applyOnLaunch,
+          click: (item) => { config.applyOnLaunch = item.checked; saveConfig(); },
+        },
+        { type: 'separator' },
+        { label: 'Choose Backup Folder…', click: () => chooseBackupFolder() },
+        {
+          label: config.backupDir ? `Backups: ${config.backupDir}` : 'Backups: not configured',
+          enabled: false,
+        },
+        {
+          label: 'Back Up Profiles Now',
+          enabled: !!config.backupDir,
+          click: () => {
+            try { setTrayTitleFlash(`${backupAllProfiles()} profiles backed up`); }
+            catch (e) { dialog.showMessageBox({ type: 'error', message: 'Backup failed', detail: e.message }); }
+          },
+        },
+        {
+          label: 'Show Backup Folder',
+          enabled: !!config.backupDir,
+          click: () => shell.openPath(config.backupDir),
+        },
+      ],
+    },
+    { type: 'separator' },
+    { label: 'Quit', click: () => { isQuitting = true; app.quit(); } },
+  ]);
+}
+
+function refreshTrayMenu() {
+  if (tray) tray.setContextMenu(buildTrayMenu());
+}
+
 function createTray() {
   const img = nativeImage.createEmpty();
   img.addRepresentation({ scaleFactor: 1, width: 22, height: 22, buffer: Buffer.from(TRAY_ICON_22_B64, 'base64') });
@@ -283,15 +409,7 @@ function createTray() {
   img.setTemplateImage(true);
   tray = new Tray(img);
   tray.setToolTip('Razer Ornata Lighting');
-  const menu = Menu.buildFromTemplate([
-    { label: 'Show / Hide Window', click: () => (mainWindow && mainWindow.isVisible() ? mainWindow.hide() : showWindow()) },
-    { type: 'separator' },
-    { label: 'Apply Default Profile', click: () => loadDefaultProfile() },
-    { label: 'Turn Keyboard Off', click: () => trayApply(() => { const r = engine.applySpec({ background: '#000000', keys: {} }); return { device: r.name }; }, 'Keyboard off') },
-    { type: 'separator' },
-    { label: 'Quit', click: () => { isQuitting = true; app.quit(); } },
-  ]);
-  tray.setContextMenu(menu);
+  tray.setContextMenu(buildTrayMenu());
   tray.on('click', () => showWindow());
 }
 
@@ -343,6 +461,7 @@ if (!gotLock) {
   app.on('second-instance', () => showWindow());
 
   app.whenReady().then(() => {
+    loadConfig();
     // In dev the bundle icon isn't applied, so set the dock icon from assets.
     if (!app.isPackaged && process.platform === 'darwin' && app.dock) {
       const devIcon = path.join(__dirname, '..', 'assets', 'icon.png');
@@ -350,8 +469,23 @@ if (!gotLock) {
     }
     registerIpc();
     buildAppMenu();
-    createWindow();
+
+    // Start minimized: no window, no dock — the app lives in the menu bar so
+    // the lighting settings are active right after login.
+    const startHidden = config.startMinimized;
+    createWindow(startHidden);
+    if (startHidden && process.platform === 'darwin' && app.dock) app.dock.hide();
     createTray();
+
+    // Re-apply the default profile so the keyboard lights up without a click.
+    // Silent on failure (e.g. device busy at boot) — no dialogs at login.
+    if (config.applyOnLaunch) {
+      try {
+        const scene = JSON.parse(fs.readFileSync(scenePath('default'), 'utf8'));
+        engine.applySpec(scene);
+        setTrayTitleFlash('Default applied');
+      } catch (_) { /* device not ready / busy — user can apply from the tray */ }
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

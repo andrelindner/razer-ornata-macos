@@ -115,7 +115,26 @@ the engine from `process.resourcesPath/cli/src/engine.js`, and the engine's own
 relative path resolves the addon to `process.resourcesPath/cli/addon.node` — the
 same logic that works in dev (`../../cli/addon.node`).
 
-Build output (`dist/`) is gitignored and never committed.
+Build output (`dist/`) is gitignored and never committed. Ready-made DMG/PKG
+builds are published on the repository's GitHub Releases page.
+
+## Settings (menu-bar → Settings)
+
+The tray menu has a **Settings** submenu (persisted in
+`~/Library/Application Support/razer-ornata-macos-app/settings.json`):
+
+- **Start at Login** — registers the app as a macOS login item.
+- **Start Minimized (Menu Bar Only)** — launch with no window and no Dock icon;
+  the app lives in the menu bar. Combine with *Start at Login* so your lighting
+  is active right after boot.
+- **Apply Default Profile on Launch** (default: on) — re-applies
+  `scenes/default.json` on every launch, so the keyboard lights up without a
+  click (the keyboard forgets its per-key colors when it loses power).
+- **Choose Backup Folder…** — pick a folder that receives a copy of every color
+  profile. Setting it seeds the folder with the current profiles; afterwards
+  every profile saved in the app is mirrored there automatically.
+  **Back Up Profiles Now** copies all bundled profiles again on demand, and
+  **Show Backup Folder** opens it in Finder.
 
 ## App icon
 
