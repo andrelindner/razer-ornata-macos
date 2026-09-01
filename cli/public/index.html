@@ -426,6 +426,14 @@ async function init() {
   }
 
   wireControls();
+
+  // Show the profile currently on the keyboard (applied earlier in this
+  // server session) instead of starting from an empty board.
+  try {
+    const cur = await api("/api/current");
+    if (cur.current && cur.current.scene) loadSceneObject(cur.current.scene);
+  } catch (_) { /* older server without the endpoint — keep the empty board */ }
+
   refreshStatus();
   refreshMouseStatus();
 }

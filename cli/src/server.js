@@ -129,11 +129,20 @@ function layoutPayload() {
   return { rows: ROWS, cols: COLS, keys, groups: GROUPS, aliases: ALIASES };
 }
 
+// The spec most recently applied to the keyboard in this server session. The
+// device can't be read back, so this is what the page loads on open instead of
+// starting with an empty board.
+let currentScene = null; // { name: string|null, scene: object }
+
 async function handleApi(req, res, url) {
   const p = url.pathname;
 
   if (req.method === 'GET' && p === '/api/layout') {
     return sendJson(res, 200, layoutPayload());
+  }
+
+  if (req.method === 'GET' && p === '/api/current') {
+    return sendJson(res, 200, { current: currentScene });
   }
 
   if (req.method === 'GET' && p === '/api/status') {
@@ -159,6 +168,7 @@ async function handleApi(req, res, url) {
     const spec = await readBody(req);
     try {
       const result = applySpec(spec);
+      currentScene = { name: null, scene: spec };
       return sendJson(res, 200, { ok: true, litCells: result.litCells, device: result.name });
     } catch (e) {
       return sendJson(res, 200, { ok: false, code: e.code || 'ERROR', error: e.message });
@@ -180,7 +190,9 @@ async function handleApi(req, res, url) {
 
   if (req.method === 'POST' && p === '/api/off') {
     try {
-      const result = applySpec({ background: '#000000', keys: {} });
+      const off = { background: '#000000', keys: {} };
+      const result = applySpec(off);
+      currentScene = { name: null, scene: off };
       return sendJson(res, 200, { ok: true, device: result.name });
     } catch (e) {
       return sendJson(res, 200, { ok: false, code: e.code || 'ERROR', error: e.message });
