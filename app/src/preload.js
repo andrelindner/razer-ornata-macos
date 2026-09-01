@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld('razer', {
   status: () => ipcRenderer.invoke('status'),
   mouseStatus: () => ipcRenderer.invoke('mouseStatus'),
 
+  // The scene currently applied to the keyboard ({ name, scene } or null) —
+  // used to restore the editor state when the window opens.
+  currentScene: () => ipcRenderer.invoke('currentScene'),
+
   // Keyboard
   applyKeyboard: (spec) => ipcRenderer.invoke('applyKeyboard', spec),
   keyboardOff: () => ipcRenderer.invoke('keyboardOff'),
@@ -35,6 +39,7 @@ contextBridge.exposeInMainWorld('razer', {
   loadSceneFile: () => ipcRenderer.invoke('loadSceneFile'),
   saveSceneFile: (scene, suggested) => ipcRenderer.invoke('saveSceneFile', scene, suggested),
 
-  // Main -> renderer notifications (e.g. tray applied the default profile)
-  onSceneLoaded: (cb) => ipcRenderer.on('scene-loaded', () => cb()),
+  // Main -> renderer notifications (e.g. tray applied the default profile).
+  // The payload is the applied { name, scene } so the editor can mirror it.
+  onSceneLoaded: (cb) => ipcRenderer.on('scene-loaded', (_e, cur) => cb(cur)),
 });

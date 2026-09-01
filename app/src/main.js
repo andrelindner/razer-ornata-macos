@@ -141,6 +141,14 @@ function backupAllProfiles() {
   return n;
 }
 
+// The scene most recently applied to the keyboard (by launch auto-apply, the
+// tray, or the renderer). The device can't be read back, so this is the source
+// of truth the UI loads when the window opens.
+let currentScene = null; // { name: string|null, scene: object }
+function setCurrentScene(name, scene) {
+  currentScene = { name: name || null, scene };
+}
+
 // Wrap an engine call so a DEVICE_BUSY / error becomes a structured result the
 // renderer can display, instead of throwing across IPC.
 function guard(fn) {
@@ -159,13 +167,19 @@ function registerIpc() {
 
   ipcMain.handle('applyKeyboard', (_e, spec) => guard(() => {
     const r = engine.applySpec(spec || {});
+    setCurrentScene(null, spec || {});
     return { litCells: r.litCells, device: r.name };
   }));
 
   ipcMain.handle('keyboardOff', () => guard(() => {
-    const r = engine.applySpec({ background: '#000000', keys: {} });
+    const off = { background: '#000000', keys: {} };
+    const r = engine.applySpec(off);
+    setCurrentScene(null, off);
     return { device: r.name };
   }));
+
+  // The scene currently on the keyboard — the UI restores it when it opens.
+  ipcMain.handle('currentScene', () => currentScene);
 
   ipcMain.handle('mouse', (_e, opts) => guard(() => {
     const r = engine.applyMouse(opts || {});
@@ -316,9 +330,10 @@ function loadDefaultProfile() {
     const full = scenePath('default');
     const scene = JSON.parse(fs.readFileSync(full, 'utf8'));
     const r = engine.applySpec(scene);
+    setCurrentScene('default.json', scene);
     return { litCells: r.litCells, device: r.name };
   }, 'Default applied');
-  if (mainWindow) mainWindow.webContents.send('scene-loaded');
+  if (mainWindow) mainWindow.webContents.send('scene-loaded', currentScene);
 }
 
 // Choose the folder that receives copies of saved color profiles.
@@ -494,6 +509,7 @@ if (!gotLock) {
       try {
         const scene = JSON.parse(fs.readFileSync(scenePath('default'), 'utf8'));
         engine.applySpec(scene);
+        setCurrentScene('default.json', scene);
         setTrayTitleFlash('Default applied');
       } catch (_) { /* device not ready / busy — user can apply from the tray */ }
     }

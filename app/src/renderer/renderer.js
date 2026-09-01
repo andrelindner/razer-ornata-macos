@@ -224,13 +224,25 @@ async function init() {
   }
 
   wireControls();
+
+  // Show the profile that is currently on the keyboard (applied at launch or
+  // from the tray) instead of starting from an empty board.
+  const cur = await api.currentScene();
+  if (cur && cur.scene) loadSceneObject(cur.scene);
+
   refreshStatus();
   refreshMouseStatus();
 
   // The tray "Apply Default Profile" reflects into the editor.
-  api.onSceneLoaded(async () => {
-    const d = await api.loadScene("default");
-    if (d.ok) { loadSceneObject(d.scene); toast("Default profile applied"); refreshStatus(); }
+  api.onSceneLoaded(async (applied) => {
+    if (applied && applied.scene) {
+      loadSceneObject(applied.scene);
+    } else {
+      const d = await api.loadScene("default");
+      if (d.ok) loadSceneObject(d.scene);
+    }
+    toast("Default profile applied");
+    refreshStatus();
   });
 }
 
